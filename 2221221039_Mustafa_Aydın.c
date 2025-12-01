@@ -79,7 +79,7 @@ void* monitor_thread(void *arg);
 void* ipc_listener_thread(void *arg);
 void init_ipc(void);
 void cleanup_ipc(void);
-void print_menu(void);
+void menu_yazdir(void);
 void dongu(void);
 void log_msg(const char *tag, const char *fmt, ...);
 
@@ -98,7 +98,7 @@ void log_msg(const char *tag, const char *fmt, ...) {
 char** parse_command(char *input) {
     char **argv = malloc(10 * sizeof(char*));
     if (!argv) {
-        log_msg("ERROR", "Bellek ayirma hatasi (parse_command)");
+        log_msg("HATA", "Bellek ayirma hatasi.");
         return NULL;
     }
 
@@ -134,7 +134,7 @@ void add_process(pid_t pid, char *command, PMode mode) {
     }
 
     sem_post(sem);
-    log_msg("ERROR", "Uygun process yeri bulunamadi (maksimum 50)!");
+    log_msg("HATA", "Uygun process yeri bulunamadi (maksimum 50)!");
 }
 
 // Mesaj kuyruğuna komut gönderir. Diğer terminaller komutu alır.
@@ -146,7 +146,7 @@ void send_message(int command, pid_t target_pid) {
     msg.target_pid = target_pid;
 
     if (msgsnd(mq_id, &msg, sizeof(Message) - sizeof(long), 0) == -1) {
-        log_msg("ERROR", "Mesaj gonderme hatasi: %s", strerror(errno));
+        log_msg("HATA", "Mesaj gonderme hatasi: %s", strerror(errno));
     }
 }
 
@@ -157,20 +157,20 @@ void start_process(void) {
     char command[256];
     printf("Çalistirilacak komutu girin: ");
     if (fgets(command, sizeof(command), stdin) == NULL) {
-        log_msg("ERROR", "Gecersiz komut girdisi!");
+        log_msg("HATA", "Gecersiz komut girdisi!");
         return;
     }
 
     command[strcspn(command, "\n")] = '\0'; // '\n' sil
     if (command[0] == '\0') {
-        log_msg("ERROR", "Bos komut girilemez!");
+        log_msg("HATA", "Bos komut girilemez!");
         return;
     }
 
     int mode_choice;
     printf("Mod secin (0: Attached, 1: Detached): ");
     if (scanf("%d", &mode_choice) != 1) {
-        log_msg("ERROR", "Gecersiz mod secimi!");
+        log_msg("HATA", "Gecersiz mod secimi!");
         int c;
         while ((c = getchar()) != '\n' && c != EOF);
         return;
@@ -187,14 +187,14 @@ void start_process(void) {
 
     char **argv = parse_command(cmd_copy);
     if (!argv || !argv[0]) {
-        log_msg("ERROR", "Komut parse edilemedi!");
+        log_msg("HATA", "Komut parse edilemedi!");
         free(argv);
         return;
     }
 
     pid_t pid = fork();
     if (pid < 0) {
-        log_msg("ERROR", "fork hatasi: %s", strerror(errno));
+        log_msg("HATA", "fork hatasi: %s", strerror(errno));
         free(argv);
         return;
     }
@@ -202,11 +202,11 @@ void start_process(void) {
     if (pid == 0) {
         if (mode == DETACHED) {
             if (setsid() == -1) {
-                log_msg("ERROR", "setsid hatasi: %s", strerror(errno));
+                log_msg("HATA", "setsid hatasi: %s", strerror(errno));
             }
         }
         execvp(argv[0], argv);
-        log_msg("ERROR", "execvp hatasi: %s", strerror(errno));
+        log_msg("HATA", "execvp hatasi: %s", strerror(errno));
         exit(1);
     } else {
         free(argv);
@@ -259,7 +259,7 @@ void terminate_process(void) {
 
     printf("Sonlandirilacak process PID: ");
     if (scanf("%d", &target_pid) != 1) {
-        log_msg("ERROR", "Gecersiz PID girdiniz!");
+        log_msg("HATA", "Gecersiz PID girdiniz!");
         int c;
         while ((c = getchar()) != '\n' && c != EOF);
         return;
@@ -284,12 +284,12 @@ void terminate_process(void) {
     sem_post(sem);
 
     if (!found) {
-        log_msg("ERROR", "PID bulunamadi veya aktif degil: %d", target_pid);
+        log_msg("HATA", "PID bulunamadi veya aktif degil: %d", target_pid);
         return;
     }
 
     if (kill(target_pid, SIGTERM) == -1) {
-        log_msg("ERROR", "Process sonlandirilamadi (PID=%d): %s",
+        log_msg("HATA", "Process sonlandirilamadi (PID=%d): %s",
                 target_pid, strerror(errno));
         return;
     }
@@ -363,7 +363,7 @@ void* ipc_listener_thread(void *arg) {
                 usleep(200000); // mesaj yoksa biraz bekle
                 continue;
             } else {
-                log_msg("ERROR", "msgrcv hatasi: %s", strerror(errno));
+                log_msg("HATA", "msgrcv hatasi: %s", strerror(errno));
                 usleep(200000);
                 continue;
             }
@@ -394,12 +394,12 @@ void init_ipc(void) {
     // 1) Shared memory
     int shm_fd = shm_open("/procx_shm", O_CREAT | O_RDWR, 0666);
     if (shm_fd == -1) {
-        log_msg("ERROR", "shm_open hatasi: %s", strerror(errno));
+        log_msg("HATA", "shm_open hatasi: %s", strerror(errno));
         exit(1);
     }
 
     if (ftruncate(shm_fd, sizeof(SharedData)) == -1) {
-        log_msg("ERROR", "ftruncate hatasi: %s", strerror(errno));
+        log_msg("HATA", "ftruncate hatasi: %s", strerror(errno));
         exit(1);
     }
 
@@ -407,7 +407,7 @@ void init_ipc(void) {
                        PROT_READ | PROT_WRITE,
                        MAP_SHARED, shm_fd, 0);
     if (shared_data == MAP_FAILED) {
-        log_msg("ERROR", "mmap hatasi: %s", strerror(errno));
+        log_msg("HATA", "mmap hatasi: %s", strerror(errno));
         exit(1);
     }
 
@@ -419,20 +419,20 @@ void init_ipc(void) {
     // 2) Semaphore
     sem = sem_open("/procx_sem", O_CREAT, 0666, 1);
     if (sem == SEM_FAILED) {
-        log_msg("ERROR", "sem_open hatasi: %s", strerror(errno));
+        log_msg("HATA", "sem_open hatasi: %s", strerror(errno));
         exit(1);
     }
 
     // 3) Message Queue
     key_t key = ftok("/tmp", 'P');
     if (key == -1) {
-        log_msg("ERROR", "ftok hatasi: %s", strerror(errno));
+        log_msg("HATA", "ftok hatasi: %s", strerror(errno));
         exit(1);
     }
 
     mq_id = msgget(key, IPC_CREAT | 0666);
     if (mq_id == -1) {
-        log_msg("ERROR", "msgget hatasi: %s", strerror(errno));
+        log_msg("HATA", "msgget hatasi: %s", strerror(errno));
         exit(1);
     }
 
@@ -440,11 +440,11 @@ void init_ipc(void) {
 
     // Thread'leri baslat
     if (pthread_create(&monitor_tid, NULL, monitor_thread, NULL) != 0) {
-        log_msg("ERROR", "monitor thread olusturulamadi: %s", strerror(errno));
+        log_msg("HATA", "monitor thread olusturulamadi: %s", strerror(errno));
     }
 
     if (pthread_create(&listener_tid, NULL, ipc_listener_thread, NULL) != 0) {
-        log_msg("ERROR", "ipc listener thread olusturulamadi: %s", strerror(errno));
+        log_msg("HATA", "ipc listener thread olusturulamadi: %s", strerror(errno));
     }
 }
 // Program kapanırken IPC bileşenlerini temizler.
@@ -486,7 +486,7 @@ void cleanup_ipc(void) {
     // Message queue'yu (istege bagli) sil
     if (mq_id != -1) {
         if (msgctl(mq_id, IPC_RMID, NULL) == -1) {
-            log_msg("ERROR", "msgctl IPC_RMID hatasi: %s", strerror(errno));
+            log_msg("HATA", "msgctl IPC_RMID hatasi: %s", strerror(errno));
         } else {
             log_msg("CLEANUP", "Message queue silindi.");
         }
@@ -497,7 +497,7 @@ void cleanup_ipc(void) {
 
 // ----------MENU----------
 // Menü ekranını yazdırır.
-void print_menu(void) {
+void menu_yazdir(void) {
     printf("\n╔═══════════════════════════════╗\n");
       printf("║         ProcX v1.0            ║\n");
       printf("╠═══════════════════════════════╣\n");
@@ -512,9 +512,9 @@ void print_menu(void) {
 void dongu(void) {
     int secenek;
     while (1) {
-        print_menu();
+        menu_yazdir();
         if (scanf("%d", &secenek) != 1) {
-            log_msg("ERROR", "Gecersiz secim!");
+            log_msg("HATA", "Gecersiz secim!");
             int c;
             while ((c = getchar()) != '\n' && c != EOF);
             continue;
@@ -534,12 +534,12 @@ void dongu(void) {
                 terminate_process();
                 break;
             case 0:
-                log_msg("INFO", "Çikis yapiliyor...");
+                log_msg("INFO", "Program kapatiliyor...");
                 cleanup_ipc();
-                log_msg("INFO", "İyi gunler!");
+                log_msg("INFO", "Allah'a emanet olun!");
                 exit(0);
             default:
-                log_msg("ERROR", "Gecersiz secim, tekrar deneyin.");
+                log_msg("HATA", "Gecersiz secim, tekrar deneyin.");
                 break;
         }
     }
