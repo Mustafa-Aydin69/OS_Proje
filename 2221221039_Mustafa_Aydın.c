@@ -17,60 +17,60 @@
 #include <stdarg.h>   
 // -------Enum--------- 
 typedef enum {
-    MODE_ATTACHED = 0,
-    MODE_DETACHED = 1
-} ProcessMode;
+    ATTACHED = 0,
+    DETACHED = 1
+} PMode; //Proccesin çalışma modunu tutuyor
 
 typedef enum {
     CMD_START = 1,
     CMD_TERMINATE = 2
-} ProcessCommand;
+} PCommand; //Queueden gönderilen komutları tutuyor
 
 typedef enum {
-    STATUS_RUNNING = 0,
-    STATUS_TERMINATED = 1
-} ProcessStatus;
+    Status_RUNNING = 0,
+    Status_TERMINATED = 1
+} PStatus; //Processin durumunu tutuyor 
 
 // --------Struct---------
 // Process bilgisi
 typedef struct {
     pid_t pid;              // Process ID
-    pid_t owner_pid;        // Baslatan instance PID
-    char command[256];      // Çalistirilan komut
-    ProcessMode mode;       // Attached / Detached
-    ProcessStatus status;   // Running / Terminated
-    time_t start_time;      // Baslangic zamani
-    int is_active;          // 1: aktif, 0: bos slot
-} ProcessInfo;
+    pid_t owner_pid;        // Hangi terminal başlattıysa onun PID'si
+    char command[256];      // Çalıstırılan komut
+    PMode mode;       // Attached / Detached
+    PStatus status;   // Running / Terminated
+    time_t start_time;      // Baslangic zamanı
+    int is_active;          // 1 ise tablodaki slot dolu, 0 ise boş
+} PInfo; // Her bir processin bilgilerini tutuyor
 
-// Shared memory yapisi
+// Shared memory 
 typedef struct {
-    ProcessInfo processes[50];
-    int process_count;
-} SharedData;
+    PInfo processes[50]; // 50 process bilgisi tutabilecek
+    int process_count; // Toplam aktif process sayısını tutacak
+} SharedData; 
 
 // Mesaj yapisi
 typedef struct {
     long msg_type;      // Mesaj tipi (queue filtresi icin)
     int command;        // CMD_START / CMD_TERMINATE
-    pid_t sender_pid;   // Gonderen instance PID
-    pid_t target_pid;   // Hedef process PID
-} Message;
+    pid_t sender_pid;   // Mesajı gönderen terminalin process'in PID'si
+    pid_t target_pid;   // Hedef process PID (Hangi process ile ilgili olduğu)
+} Message; //Mesaj queue'ya gönderilen mesajların yapısını tutuyor
 
 
 //-----------Global Değişkenler------------
-SharedData *shared_data = NULL;
-sem_t *sem = NULL;
-int mq_id = -1;
-int is_running = 1;
-pid_t instance_pid;
-pthread_t monitor_tid;
-pthread_t listener_tid;
+SharedData *shared_data = NULL; // Shared memory pointer'ı tabloyu Ramda tutuyor
+sem_t *sem = NULL; // Semaphore pointer'ı aynı anda iki kişinin yada daha fazla kişinin tabloya erişmesini engelliyor
+int mq_id = -1; //KUllanılan message queue id'si
+int is_running = 1; //Threadlerin çalışıp çalışmayacağını kontrol ediyor kısaca flag görevi görüyor
+pid_t instance_pid; //Terminalin process id'si
+pthread_t monitor_tid; //Monitor thread id'si
+pthread_t listener_tid; //IPC mesajlarını dinleyen thread'in ID'si
 
 
 // ---------Fonksiyon Prototipleri---------
 void start_process(void);
-void add_process(pid_t pid, char *command, ProcessMode mode);
+void add_process(pid_t pid, char *command, PMode mode);
 void send_message(int command, pid_t target_pid);
 char** parse_command(char *input);
 void list_processes(void);
@@ -84,7 +84,7 @@ void dongu(void);
 void log_msg(const char *tag, const char *fmt, ...);
 
 // ---------Fonksiyonlar---------
-// Log mesaji yazdir
+// Formatlı şekilde log mesajları yazmak için kullanılıyor
 void log_msg(const char *tag, const char *fmt, ...) {
     va_list args;
     printf("[%s] ", tag);
@@ -94,7 +94,7 @@ void log_msg(const char *tag, const char *fmt, ...) {
     printf("\n");
 }
 
-// Komut satirini argv[] formatina cevir
+// Girilen komutu örnek (Sleep 10 gibi) bunu argv formatına çevirir.
 char** parse_command(char *input) {
     char **argv = malloc(10 * sizeof(char*));
     if (!argv) {
@@ -112,18 +112,18 @@ char** parse_command(char *input) {
     return argv;
 }
 
-// Shared memory'ye yeni process ekle
-void add_process(pid_t pid, char *command, ProcessMode mode) {
+// Shared memory'ye yeni process ekler. Boş slot bulur ve bilgileri yazar ve count'u artırır.
+void add_process(pid_t pid, char *command, PMode mode) {
     sem_wait(sem);
 
     for (int i = 0; i < 50; i++) {
         if (!shared_data->processes[i].is_active) {
-            ProcessInfo *proc = &shared_data->processes[i];
+            PInfo *proc = &shared_data->processes[i];
             proc->pid = pid;
             proc->owner_pid = instance_pid;
             strncpy(proc->command, command, sizeof(proc->command) - 1);
             proc->mode = mode;
-            proc->status = STATUS_RUNNING;
+            proc->status = Status_RUNNING;
             proc->start_time = time(NULL);
             proc->is_active = 1;
             shared_data->process_count++;
@@ -137,7 +137,7 @@ void add_process(pid_t pid, char *command, ProcessMode mode) {
     log_msg("ERROR", "Uygun process yeri bulunamadi (maksimum 50)!");
 }
 
-// Mesaj gonder
+// Mesaj kuyruğuna komut gönderir. Diğer terminaller komutu alır.
 void send_message(int command, pid_t target_pid) {
     Message msg;
     msg.msg_type = 1;           
@@ -151,7 +151,8 @@ void send_message(int command, pid_t target_pid) {
 }
 
 // --------------Process-------------
-
+// Kullanıcı komutu girince fork yapar ve child processte exec ile komutu çalıştırır. 
+//Tabloya eklenir ve IPC ile diğer terminallere bildirilir.
 void start_process(void) {
     char command[256];
     printf("Çalistirilacak komutu girin: ");
@@ -178,7 +179,7 @@ void start_process(void) {
     int c;
     while ((c = getchar()) != '\n' && c != EOF);
 
-    ProcessMode mode = (mode_choice == 0) ? MODE_ATTACHED : MODE_DETACHED;
+    PMode mode = (mode_choice == 0) ? ATTACHED : DETACHED;
 
     char cmd_copy[256];
     strncpy(cmd_copy, command, sizeof(cmd_copy) - 1);
@@ -199,7 +200,7 @@ void start_process(void) {
     }
 
     if (pid == 0) {
-        if (mode == MODE_DETACHED) {
+        if (mode == DETACHED) {
             if (setsid() == -1) {
                 log_msg("ERROR", "setsid hatasi: %s", strerror(errno));
             }
@@ -211,10 +212,11 @@ void start_process(void) {
         free(argv);
         add_process(pid, command, mode);
         send_message(CMD_START, pid);
-        log_msg("INFO", "Yeni process baslatildi: PID %d, MODE=%s", pid, (mode == MODE_ATTACHED) ? "ATTACHED" : "DETACHED");
+        log_msg("INFO", "Yeni process baslatildi: PID %d, MODE=%s", pid, (mode == ATTACHED) ? "ATTACHED" : "DETACHED");
     }
 }
 // -----------Process Listeleme----------
+// Shared memory'deki aktif processleri formatlı şekilde listeler.
 void list_processes(void) {
     printf("╔═══════════════════════════════════════════════════════════════╗\n");
     printf("║                    ÇALIŞAN PROGRAMLAR                         ║\n");
@@ -228,13 +230,13 @@ void list_processes(void) {
     time_t now = time(NULL);
 
     for (int i = 0; i < 50; i++) {
-        ProcessInfo *p = &shared_data->processes[i];
+        PInfo *p = &shared_data->processes[i];
         if (!p->is_active)
             continue;
 
         active_count++;
 
-        const char *mode_str = (p->mode == MODE_ATTACHED) ? "Attached" : "Detached";
+        const char *mode_str = (p->mode == ATTACHED) ? "Attached" : "Detached";
         int runtime = (int)(now - p->start_time);
 
         printf("║ %-7d │ %-20s │ %-8s │ %-7d │ %-5ds ║\n",
@@ -251,6 +253,7 @@ void list_processes(void) {
     printf("Toplam: %d process\n", active_count);
 }
 // -----------Process Sonlandırma----------
+// Bir PID alır ve o process'e SIGTERM(kill) sinyali gönderir. Asıl silme işlemi burada yapılmaz.
 void terminate_process(void) {
     pid_t target_pid;
 
@@ -269,7 +272,7 @@ void terminate_process(void) {
 
     int found = 0;
     for (int i = 0; i < 50; i++) {
-        ProcessInfo *p = &shared_data->processes[i];
+        PInfo *p = &shared_data->processes[i];
         if (p->is_active && p->pid == target_pid) {
             found = 1;
             // statuyu burada TERMINATED yapmiyoruz;
@@ -298,6 +301,8 @@ void terminate_process(void) {
     send_message(CMD_TERMINATE, target_pid);
 }
 //------------Monitor Thread-----------
+// Biten processleri tespit eder ve tablodan siler ve IPC ile diğer terminallere bildirir.
+
 void* monitor_thread(void *arg) {
     (void)arg;
 
@@ -310,10 +315,10 @@ void* monitor_thread(void *arg) {
             sem_wait(sem);
 
             for (int i = 0; i < 50; i++) {
-                ProcessInfo *p = &shared_data->processes[i];
+                PInfo *p = &shared_data->processes[i];
                 if (p->is_active && p->pid == ended_pid) {
                     p->is_active = 0;
-                    p->status = STATUS_TERMINATED;
+                    p->status = Status_TERMINATED;
                     if (shared_data->process_count > 0)
                         shared_data->process_count--;
 
@@ -339,6 +344,7 @@ void* monitor_thread(void *arg) {
     return NULL;
 }
 // --------IPC Listener Thread--------
+// Mesaj queueden gelen mesajları dinler ve işler.
 void* ipc_listener_thread(void *arg) {
     (void)arg;
     Message msg;
@@ -381,6 +387,7 @@ void* ipc_listener_thread(void *arg) {
     return NULL;
 }
 // --------IPC Başlatma ve Temizleme---------
+// IPC bileşenlerini başlatır.
 void init_ipc(void) {
     instance_pid = getpid();
 
@@ -440,7 +447,7 @@ void init_ipc(void) {
         log_msg("ERROR", "ipc listener thread olusturulamadi: %s", strerror(errno));
     }
 }
-
+// Program kapanırken IPC bileşenlerini temizler.
 void cleanup_ipc(void) {
     is_running = 0;
 
@@ -451,15 +458,15 @@ void cleanup_ipc(void) {
     // Bu instance'in ATTACHED process'lerini oldur
     sem_wait(sem);
     for (int i = 0; i < 50; i++) {
-        ProcessInfo *p = &shared_data->processes[i];
+        PInfo *p = &shared_data->processes[i];
         if (p->is_active &&
             p->owner_pid == instance_pid &&
-            p->mode == MODE_ATTACHED) {
+            p->mode == ATTACHED) {
 
             log_msg("CLEANUP", "Attached process sonlandiriliyor: PID %d", p->pid);
             kill(p->pid, SIGTERM);
             p->is_active = 0;
-            p->status = STATUS_TERMINATED;
+            p->status = Status_TERMINATED;
             if (shared_data->process_count > 0)
                 shared_data->process_count--;
         }
@@ -489,7 +496,7 @@ void cleanup_ipc(void) {
 }
 
 // ----------MENU----------
-
+// Menü ekranını yazdırır.
 void print_menu(void) {
     printf("\n╔═══════════════════════════════╗\n");
       printf("║         ProcX v1.0            ║\n");
@@ -501,6 +508,7 @@ void print_menu(void) {
       printf("╚═══════════════════════════════╝\n");
     printf("Seciminiz: ");
 }
+// Menüdeki seçenekleri yönetir.
 void dongu(void) {
     int secenek;
     while (1) {
