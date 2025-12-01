@@ -359,10 +359,21 @@ void* ipc_listener_thread(void *arg) {
         );
 
         if (r == -1) {
+            // HATA YÖNETİMİ GÜNCELLEMESİ BURADA:
             if (errno == ENOMSG) {
-                usleep(200000); // mesaj yoksa biraz bekle
+                // Mesaj yoksa biraz bekle, sorun yok
+                usleep(200000); 
                 continue;
-            } else {
+            } 
+            else if (errno == EINVAL || errno == EIDRM) {
+                // Eger kuyruk silinmisse (baska bir process sildiyse)
+                // Artik dinlemenin bir anlami yok, donguden sessizce cik.
+                // Log basmaya gerek yok veya sadece bir kere bilgi basılabilir.
+                printf("\n\n[INFO] Program kapatildi veya kuyruk silindi. Cikis yapiliyor.Allah'a Emanet Olun!\n");
+                exit(0); 
+            }
+            else {
+                // Beklenmedik diğer hatalar
                 log_msg("HATA", "msgrcv hatasi: %s", strerror(errno));
                 usleep(200000);
                 continue;
@@ -374,7 +385,6 @@ void* ipc_listener_thread(void *arg) {
             continue;
 
         if (msg.command == CMD_START) {
-            // Dokumandaki formata yakin
             log_msg("IPC", "Yeni process baslatildi: PID %d", msg.target_pid);
         } else if (msg.command == CMD_TERMINATE) {
             log_msg("IPC", "Process sonlandirildi: PID %d", msg.target_pid);
