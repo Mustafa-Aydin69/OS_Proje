@@ -494,6 +494,14 @@ void cleanup_ipc(void) {
         sem_close(sem);
     }
 
+    if (sem_unlink("/procx_sem") == 0) {
+        log_msg("CLEANUP", "Semaphore (/procx_sem) sistemden kaldirildi.");
+    } else {
+        // Hata durumunda (örneğin semaphor daha önce kaldırılmışsa) bilgi verilir.
+        // Bu HATA genellikle diğer instance'lar tarafından zaten kaldırıldığı anlamına gelebilir.
+        log_msg("HATA", "sem_unlink hatasi: %s", strerror(errno));
+    }
+
     // Message queue'yu (istege bagli) sil
     if (mq_id != -1) {
         if (msgctl(mq_id, IPC_RMID, NULL) == -1) {
