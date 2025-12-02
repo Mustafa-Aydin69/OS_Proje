@@ -1,5 +1,5 @@
 # PROCX PROJESİ İÇİN MAKEFILE
-# ----------------------------------------------------
+
 
 CC      = gcc
 CFLAGS  = -g -Wall -std=c99
