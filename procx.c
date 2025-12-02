@@ -212,7 +212,7 @@ void start_process(void) {
         free(argv);
         add_process(pid, command, mode);
         send_message(CMD_START, pid);
-        log_msg("INFO", "Yeni process baslatildi: PID %d, MODE=%s", pid, (mode == ATTACHED) ? "ATTACHED" : "DETACHED");
+        log_msg("BILGI", "Yeni process baslatildi: PID %d, MODE=%s", pid, (mode == ATTACHED) ? "ATTACHED" : "DETACHED");
     }
 }
 // -----------Process Listeleme----------
@@ -296,7 +296,7 @@ void terminate_process(void) {
     }
 
     // Dokumanda istenen log:
-    log_msg("INFO", "Process %d'e SIGTERM sinyali gonderildi", target_pid);
+    log_msg("BILGI", "Process %d'e SIGTERM sinyali gonderildi", target_pid);
 
     // Diger instance'lara da bildir:
     send_message(CMD_TERMINATE, target_pid);
@@ -370,7 +370,7 @@ void* ipc_listener_thread(void *arg) {
                 // Eger kuyruk silinmisse (baska bir process sildiyse)
                 // Artik dinlemenin bir anlami yok, donguden sessizce cik.
                 // Log basmaya gerek yok veya sadece bir kere bilgi basılabilir.
-                printf("\n\n[INFO] Program kapatildi veya kuyruk silindi. Cikis yapiliyor.\n");
+                printf("\n\n[BILGI] Program kapatildi veya kuyruk silindi. Cikis yapiliyor.\n");
                 exit(0); 
             }
             else {
@@ -447,7 +447,7 @@ void init_ipc(void) {
         exit(1);
     }
 
-    log_msg("INFO", "IPC baslatildi. PID=%d", instance_pid);
+    log_msg("BILGI", "IPC baslatildi. PID=%d", instance_pid);
 
     // Thread'leri baslat
     if (pthread_create(&monitor_tid, NULL, monitor_thread, NULL) != 0) {
@@ -474,7 +474,7 @@ void cleanup_ipc(void) {
             p->owner_pid == instance_pid &&
             p->mode == ATTACHED) {
 
-            log_msg("CLEANUP", "Attached process sonlandiriliyor: PID %d", p->pid);
+            log_msg("TEMIZLIK", "Attached process sonlandiriliyor: PID %d", p->pid);
             kill(p->pid, SIGTERM);
             p->is_active = 0;
             p->status = Status_TERMINATED;
@@ -495,7 +495,7 @@ void cleanup_ipc(void) {
     }
 
     if (sem_unlink("/procx_sem") == 0) {
-        log_msg("CLEANUP", "Semaphore (/procx_sem) sistemden kaldirildi.");
+        log_msg("TEMIZLIK", "Semaphore (/procx_sem) sistemden kaldirildi.");
     } else {
         // Hata durumunda (örneğin semaphor daha önce kaldırılmışsa) bilgi verilir.
         // Bu HATA genellikle diğer instance'lar tarafından zaten kaldırıldığı anlamına gelebilir.
@@ -507,11 +507,11 @@ void cleanup_ipc(void) {
         if (msgctl(mq_id, IPC_RMID, NULL) == -1) {
             log_msg("HATA", "msgctl IPC_RMID hatasi: %s", strerror(errno));
         } else {
-            log_msg("CLEANUP", "Message queue silindi.");
+            log_msg("TEMIZLIK", "Message queue silindi.");
         }
     }
 
-    log_msg("CLEANUP", "IPC temizligi tamamlandi.");
+    log_msg("TEMIZLIK", "IPC temizligi tamamlandi.");
 }
 
 // ----------MENU----------
@@ -553,9 +553,9 @@ void dongu(void) {
                 terminate_process();
                 break;
             case 0:
-                log_msg("INFO", "Program kapatiliyor...");
+                log_msg("BILGI", "Program kapatiliyor...");
                 cleanup_ipc();
-                log_msg("INFO", "Cikis yapildi.");
+                log_msg("BILGI", "Cikis yapildi.");
                 exit(0);
             default:
                 log_msg("HATA", "Gecersiz secim, tekrar deneyin.");
