@@ -175,5 +175,9 @@ Bu proje, Linux üzerinde aşağıdaki konuları öğrenmek için mükemmel bir
 -   Thread senkronizasyonu\
 -   Multi-terminal senaryolar\
 -   POSIX sistem çağrıları
-
+------------------------------------------------------------------------
+## Geliştiren 
+- Mustafa Aydın
+- 2221221039
+- mustafa_aydin@stu.fsm.edu.tr
 ------------------------------------------------------------------------
