@@ -53,8 +53,8 @@ typedef struct {
 typedef struct {
     long msg_type;      // Mesaj tipi (queue filtresi icin)
     int command;        // CMD_START / CMD_TERMINATE
-    pid_t sender_pid;   // Mesajı gönderen terminalin process'in PID'si
-    pid_t target_pid;   // Hedef process PID (Hangi process ile ilgili olduğu)
+    pid_t sender_pid;   // Mesajı gönderen terminalin process'in ID'si
+    pid_t target_pid;   // Hedef process ID (Hangi process ile ilgili olduğu)
 } Message;              //Mesaj queue'ya gönderilen mesajların yapısını tutuyor
 
 
