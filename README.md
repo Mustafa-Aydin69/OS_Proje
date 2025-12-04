@@ -6,13 +6,13 @@ yönetim aracı**dır.\
 Aynı anda birden fazla terminalde çalışabilir ve ortak bir **shared
 memory + semaphore + message queue** yapısı üzerinden:
 
--   Process başlatabilir\
--   Process sonlandırabilir\
--   Process listesini senkronize görebilir\
--   Diğer terminallerin başlattığı/bitirdiği işlemleri gerçek zamanlı
+-   Process başlatabilir
+-   Process sonlandırabilir
+-   Process listesini senkronize görebilir
+-   Diğer terminallerin başlattığı bitirdiği işlemleri gerçek zamanlı
     öğrenebilir
 
-Tamamen **C dili**, **POSIX API**, **shared memory**, **semaphore**,
+Tamamen **C dili**, **shared memory**, **semaphore**,
 **message queue**, **threads**, **signals**, **fork-exec** mekanizmaları
 üzerine inşa edilmiştir.
 
@@ -23,7 +23,7 @@ Tamamen **C dili**, **POSIX API**, **shared memory**, **semaphore**,
 ### 🔹 1. Process Yönetimi
 
 -   Yeni process başlatma (fork + execvp)
--   Attached / Detached modda başlatma
+-   Attached  Detached modda başlatma
 -   Otomatik runtime hesaplama
 -   Process sonlandırma (SIGTERM)
 
@@ -67,9 +67,9 @@ ProcX aynı anda birden fazla terminalde çalışır:
 ## 📁 Proje Yapısı
 
     ProcX/
-    ├── procx.c            # Tüm işlem motoru
+    ├── procx.c            # Ana kaynak kod dosyası (TEK DOSYA)
     ├── README.md          # Açıklama (bu dosya)
-    └── Makefile (istersen ekleyebilirim)
+    └── Makefile           # Derleme dosyası
 
 ------------------------------------------------------------------------
 
@@ -78,7 +78,7 @@ ProcX aynı anda birden fazla terminalde çalışır:
 ### 1) Derle
 
 ``` bash
-gcc procx.c -o procx -pthread -lrt
+make
 ```
 
 ### 2) Çalıştır
@@ -177,14 +177,3 @@ Bu proje, Linux üzerinde aşağıdaki konuları öğrenmek için mükemmel bir
 -   POSIX sistem çağrıları
 
 ------------------------------------------------------------------------
-
-## 📞 İletişim
-
-Herhangi bir geliştirme, PR, issue veya soru için iletişime
-geçebilirsin.
-
-------------------------------------------------------------------------
-
-## 📜 Lisans
-
-MIT License.
